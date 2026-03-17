@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>YOKO CS — Chat</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="global.css">
+<link rel="stylesheet" href="chat.css">
+<style>
+body { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+#user-wrap {
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  max-width:520px;margin:0 auto;width:100%;
+  border-left:1.5px solid var(--border);border-right:1.5px solid var(--border);
+}
+</style>
+<!-- Firebase (needed if opened directly) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<div id="user-wrap">
+
+  <!-- CS Header -->
+  <div class="cs-header">
+    <img id="u-cs-av" class="cs-av" src="" alt="CS">
+    <div class="cs-info">
+      <div id="u-cs-name" class="cs-name">Customer Service</div>
+      <div id="u-cs-store" class="cs-store">YOKO STORE</div>
+      <div class="cs-status">
+        <div class="status-dot anim-pulse"></div>
+        <span>Online · Siap membantu kamu</span>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <button class="btn-icon" onclick="showMyProfile()" title="Profil"><i class="fa fa-user"></i></button>
+      <button class="btn-icon" onclick="logout()" title="Logout"><i class="fa fa-right-from-bracket"></i></button>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="msgs" id="u-msgs"></div>
+
+  <!-- Input -->
+  <div class="input-area">
+    <!-- upload progress -->
+    <div id="u-up-wrap" class="up-wrap" style="display:none">
+      <div class="up-label" id="u-up-lbl">Mengupload...</div>
+      <div class="up-bar-bg"><div class="up-bar" id="u-up-bar" style="width:0%"></div></div>
+    </div>
+    <!-- reply preview -->
+    <div id="reply-prev" class="reply-prev" style="display:none">
+      <div><div class="rp-name"></div><div class="rp-text"></div></div>
+      <span class="rp-x" onclick="cancelReply('user')">✕</span>
+    </div>
+    <div class="input-row">
+      <div class="attach-wrap">
+        <button class="attach-btn" onclick="toggleAttach('u-attach',event)" title="Lampiran">
+          <i class="fa fa-paperclip"></i>
+        </button>
+        <div class="attach-menu" id="u-attach" style="display:none">
+          <div class="attach-opt" onclick="pickFile('image/*')"><i class="fa fa-image" style="color:var(--accent)"></i> Foto / Gambar</div>
+          <div class="attach-opt" onclick="pickFile('video/*')"><i class="fa fa-video" style="color:var(--accent2)"></i> Video</div>
+          <div class="attach-opt" onclick="pickFile('audio/*')"><i class="fa fa-music" style="color:#f472b6"></i> Musik / Audio</div>
+          <div class="attach-opt" onclick="pickFile('*/*')"><i class="fa fa-file" style="color:var(--accent3)"></i> File / Dokumen</div>
+        </div>
+      </div>
+      <textarea class="msg-box" id="msg-box" placeholder="Pesan ke CS..." rows="1"
+        onkeydown="onKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" onclick="sendMsg()" title="Kirim"><i class="fa fa-paper-plane"></i></button>
+    </div>
+    <input type="file" id="u-file" style="display:none" onchange="onFile(event)">
+  </div>
+
+</div>
+
+<!-- Profile modal -->
+<div class="modal-overlay" id="my-profile-modal" style="display:none">
+  <div class="modal-box" style="max-width:340px;text-align:center">
+    <img id="mp-av" style="width:72px;height:72px;border-radius:18px;object-fit:cover;border:3px solid var(--accent);display:block;margin:0 auto 10px" src="" alt="">
+    <div id="mp-name" style="font-size:18px;font-weight:700"></div>
+    <div id="mp-email" style="font-size:12px;color:var(--text2);margin-top:3px"></div>
+    <div id="mp-uid" style="font-size:10px;color:var(--text3);margin-top:5px;word-break:break-all"></div>
+    <div class="modal-footer" style="justify-content:center;margin-top:18px">
+      <button class="btn btn-sm btn-danger" onclick="logout()"><i class="fa fa-right-from-bracket"></i> Logout</button>
+      <button class="btn btn-sm btn-outline" onclick="closeModal('my-profile-modal')">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script src="messages.js"></script>
+<script>
+(function() {
+'use strict';
+
+// Support standalone open (direct URL) — redirect to index if no App.db
+window.addEventListener('load', () => {
+  if (!window.App?.db && !window.initUser) {
+    window.location.href = '/';
+  }
+});
+
+window.initUser = async function() {
+  const db = window.App.db, user = window.App.user;
+  if (!db || !user) return;
+
+  // Check banned
+  const banSnap = await db.ref('users/'+user.uid+'/banned').once('value');
+  if (banSnap.val()) {
+    document.getElementById('user-wrap').innerHTML = `
+      <div class="banned-screen">
+        <div style="font-size:60px">🚫</div>
+        <div style="font-size:22px;font-weight:800;color:var(--danger)">Akun Dibanned</div>
+        <div style="font-size:14px;color:var(--text2);max-width:270px;line-height:1.6;text-align:center">Akunmu telah dibanned oleh admin. Hubungi kami melalui saluran lain jika ini kesalahan.</div>
+        <button class="btn btn-sm btn-outline" onclick="logout()" style="margin-top:8px"><i class="fa fa-right-from-bracket"></i> Logout</button>
+      </div>`;
+    return;
+  }
+
+  // Load CS settings
+  const cs = (await db.ref('cs_settings').once('value')).val() || {};
+  document.getElementById('u-cs-av').src   = cs.avatar    || genAv('CS');
+  document.getElementById('u-cs-name').textContent  = cs.name      || 'Customer Service';
+  document.getElementById('u-cs-store').textContent = cs.storeName || 'YOKO STORE';
+
+  // Ensure userInfo saved
+  await db.ref('chats/'+user.uid+'/userInfo').set({ name:user.displayName, email:user.email, photoURL:user.photoURL||'' });
+
+  // Welcome message (first time)
+  const wc = await db.ref('chats/'+user.uid+'/welcomed').once('value');
+  if (!wc.val() && cs.welcome) {
+    await db.ref('chats/'+user.uid+'/messages').push({ type:'text', text:cs.welcome, uid:'__cs__', name:cs.name||'CS', photoURL:cs.avatar||'', from:'cs', timestamp:Date.now(), read:true });
+    await db.ref('chats/'+user.uid).update({ welcomed:true });
+  }
+
+  listenMsgs();
+};
+
+function listenMsgs() {
+  const db=window.App.db, user=window.App.user;
+  const cont=document.getElementById('u-msgs');
+  db.ref('chats/'+user.uid+'/messages').on('child_added', snap => {
+    const msg=snap.val(); msg.id=snap.key;
+    appendMsg(msg, cont, user.uid, user.uid);
+    scrollEnd(cont);
+    if (msg.from==='cs') db.ref('chats/'+user.uid+'/messages/'+snap.key+'/read').set(true);
+  });
+  db.ref('chats/'+user.uid+'/messages').on('child_changed', snap => { const msg=snap.val();msg.id=snap.key; updateMsg(msg,cont,user.uid,user.uid); });
+  db.ref('chats/'+user.uid+'/messages').on('child_removed', snap => removeMsg(snap.key));
+}
+
+window.sendMsg = async function() {
+  const db=window.App.db, user=window.App.user;
+  const box=document.getElementById('msg-box'), text=box.value.trim();
+  if (!text) return;
+  const ban=(await db.ref('users/'+user.uid+'/banned').once('value')).val();
+  if (ban) { toast('Akun dibanned!','err'); return; }
+  box.value=''; autoResize(box);
+  const msg={ type:'text', text, uid:user.uid, name:user.displayName, photoURL:user.photoURL||'', from:'user', timestamp:Date.now(), read:false };
+  const rep=window._reply.user;
+  if (rep) { msg.replyTo={id:rep.id,name:rep.name,text:rep.text||'[media]'}; cancelReply('user'); }
+  await db.ref('chats/'+user.uid+'/messages').push(msg);
+  await db.ref('chats/'+user.uid).update({ lastMsg:text, lastTime:Date.now(), unread:firebase.database.ServerValue.increment(1) });
+  scrollEnd('u-msgs');
+};
+
+window.onKey = function(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();} };
+
+window.pickFile = function(accept) {
+  const f=document.getElementById('u-file'); f.accept=accept; f.click(); hideAllAttach();
+};
+
+window.onFile = async function(e) {
+  const file=e.target.files[0]; if(!file) return; e.target.value='';
+  const db=window.App.db, user=window.App.user;
+  const prog=document.getElementById('u-up-wrap'), bar=document.getElementById('u-up-bar'), lbl=document.getElementById('u-up-lbl');
+  prog.style.display='block'; lbl.textContent='Mengupload '+file.name+'...';
+  try {
+    const result = await uploadImgBB(file, p=>bar.style.width=p+'%');
+    const msg={ type:detectType(file), url:result.url, uid:user.uid, name:user.displayName, photoURL:user.photoURL||'', from:'user', filename:file.name, size:fmtSize(file.size), timestamp:Date.now(), read:false };
+    const rep=window._reply.user;
+    if (rep) { msg.replyTo={id:rep.id,name:rep.name,text:rep.text||'[media]'}; cancelReply('user'); }
+    await db.ref('chats/'+user.uid+'/messages').push(msg);
+    await db.ref('chats/'+user.uid).update({ lastMsg:'['+msg.type+'] '+file.name, lastTime:Date.now(), unread:firebase.database.ServerValue.increment(1) });
+    toast('Terkirim!','ok'); scrollEnd('u-msgs');
+  } catch(err) { toast('Upload gagal: '+err.message,'err'); }
+  prog.style.display='none'; bar.style.width='0%';
+};
+
+window.showMyProfile = function() {
+  const user=window.App.user;
+  document.getElementById('mp-av').src    = user.photoURL||genAv(user.displayName);
+  document.getElementById('mp-name').textContent  = user.displayName;
+  document.getElementById('mp-email').textContent = user.email;
+  document.getElementById('mp-uid').textContent   = 'UID: '+user.uid;
+  openModal('my-profile-modal');
+};
+
+})();
+</script>
+</body>
+</html>
