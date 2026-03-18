@@ -2,7 +2,7 @@
 'use strict';
 
 const IMGBB_KEY   = '99bf016111ec0f50e3160ecb66e8a33f';
-const MAX_MB      = 10;
+const MAX_MB = 200;
 const REACT_LIST  = ['👍','❤️','😂','😮','😢','🔥','💯','👏'];
 
 window.App = { db:null, auth:null, user:null, role:null };
@@ -60,7 +60,7 @@ function onLP(el,cb){let t;el.addEventListener('touchstart',e=>{t=setTimeout(()=
 /* ── Copy ────────────────── */
 function copyTxt(s){navigator.clipboard?.writeText(s).then(()=>toast('Disalin!','tok')).catch(()=>{const t=document.createElement('textarea');t.value=s;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Disalin!','tok');});}
 
-/* ── Smart upload: image=imgBB, video/audio/file=0x0.st ── */
+/* ── Smart upload: image=imgBB, video/audio/file=catbox.moe (max 200MB) ── */
 async function upImgBB(file,onProg){
   if(file.size>MAX_MB*1048576) throw new Error('Max '+MAX_MB+'MB');
   const type=dType(file);
@@ -79,12 +79,19 @@ async function _upImgBB(file,onProg){
   });
 }
 async function _up0x0(file,onProg){
-  const fd=new FormData();fd.append('file',file);
+  const fd=new FormData();
+  fd.append('reqtype','fileupload');
+  fd.append('userhash','');
+  fd.append('fileToUpload',file);
   return new Promise((res,rej)=>{
     const x=new XMLHttpRequest();
-    x.open('POST','https://0x0.st');
+    x.open('POST','https://catbox.moe/user/api.php');
     x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*90));};
-    x.onload=()=>{const url=(x.responseText||'').trim();if(x.status===200&&url.startsWith('https://')){onProg&&onProg(100);res({url});}else rej(new Error('Upload gagal ('+x.status+')'));};
+    x.onload=()=>{
+      const url=(x.responseText||'').trim();
+      if(x.status===200&&url.startsWith('https://')){onProg&&onProg(100);res({url});}
+      else rej(new Error('Upload gagal: '+(url||x.status)));
+    };
     x.onerror=()=>rej(new Error('Network error'));
     x.send(fd);
   });
