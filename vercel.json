@@ -1,21 +1,10 @@
 {
   "version": 2,
   "routes": [
-    { "src": "/",        "dest": "/index.html" },
-    { "src": "/chat",    "dest": "/user.html"  },
-    { "src": "/admin",   "dest": "/admin.html" },
-    { "src": "/login",   "dest": "/index.html" },
+    { "src": "/", "dest": "/index.html" },
+    { "src": "/chat", "dest": "/user.html" },
+    { "src": "/admin", "dest": "/admin.html" },
     { "handle": "filesystem" },
-    { "src": "/(.*)",    "dest": "/index.html" }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options",        "value": "SAMEORIGIN" },
-        { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" }
-      ]
-    }
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
