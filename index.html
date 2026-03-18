@@ -51,9 +51,8 @@
 .auth-feat{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--text2);}
 .auth-feat i{font-size:18px;color:var(--accent);}
 .auth-note{font-size:11px;color:var(--text3);text-align:center;max-width:270px;line-height:1.55;}
-/* Config link in auth */
-.cfg-link{font-size:12px;color:var(--text3);cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;font-family:'Nunito',sans-serif;}
-.cfg-link:active{background:var(--card);}
+/* cfg-link hidden — accessible via javascript:showCfg() only */
+.cfg-link{display:none;}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -116,7 +115,6 @@
         <div class="auth-feat"><i class="fa fa-shield-halved"></i><span>Aman</span></div>
       </div>
       <p class="auth-note">Dengan login kamu setuju dengan ketentuan layanan ini.</p>
-      <button class="cfg-link" onclick="showCfg()">⚙️ Ubah Config Firebase</button>
     </div>
   </div>
 </div>
@@ -155,7 +153,7 @@ function initFB(c){
       window.App.auth=firebase.auth();
       setSt('Terhubung ✓');
       setTimeout(()=>{document.getElementById('ld').style.display='none';window.App.auth.onAuthStateChanged(onAuth);},500);
-    }catch(e){document.getElementById('ld').style.display='none';toast('Firebase error: '+e.message,'ter');showCfg();}
+    }catch(e){document.getElementById('ld').style.display='none';toast('Firebase error: '+e.message,'ter');document.getElementById('auth').style.display='block';}
   };
   try{firebase.apps.length?firebase.app().delete().then(go).catch(go):go();}catch{go();}
 }
@@ -201,8 +199,13 @@ async function loadPg(src,id){
 
 window.addEventListener('load',()=>{
   const c=getCfg();
-  if(!c?.apiKey||!c?.databaseURL){document.getElementById('ld').style.display='none';showCfg();}
-  else initFB(c);
+  // No config? Just show auth — user can call showCfg() manually via console
+  if(!c?.apiKey||!c?.databaseURL){
+    document.getElementById('ld').style.display='none';
+    document.getElementById('auth').style.display='block';
+    return;
+  }
+  initFB(c);
 });
 </script>
 </body>
