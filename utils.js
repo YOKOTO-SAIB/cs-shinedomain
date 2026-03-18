@@ -113,7 +113,7 @@ function showCtx(x,y,cfg){
 }
 
 /* ── Attach menu ──────────── */
-function togAtt(id,e){e?.stopPropagation();const m=document.getElementById(id);if(!m)return;const open=m.style.display==='flex';hideAtts();if(!open){m.style.display='flex';m.style.flexDirection='column';}}
+function togAtt(id,e){e?.stopPropagation();const m=document.getElementById(id);if(!m)return;const open=m.style.display==='block';hideAtts();if(!open){m.style.display='block';}}
 function hideAtts(){document.querySelectorAll('.att-menu').forEach(m=>m.style.display='none');}
 document.addEventListener('click',hideAtts);
 

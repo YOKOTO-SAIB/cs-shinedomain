@@ -154,9 +154,9 @@ select.fi{cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='
 .ctx-row.danger:active{background:rgba(244,63,94,.1);}
 
 /* ── Attach menu ── */
-.att-wrap{position:relative;}
-.att-menu{position:absolute;bottom:calc(100%+8px);left:0;background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:6px;z-index:200;box-shadow:var(--sh);min-width:180px;animation:popIn .13s ease;}
-.att-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;font-size:14px;color:var(--text2);min-height:44px;transition:background .12s;}
+.att-wrap{position:relative;flex-shrink:0;}
+.att-menu{position:absolute;bottom:calc(100% + 8px);left:0;background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:6px;z-index:200;box-shadow:var(--sh);min-width:180px;animation:popIn .13s ease;transform-origin:bottom left;display:none;}
+.att-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;font-size:14px;color:var(--text2);min-height:44px;transition:background .12s;white-space:nowrap;}
 .att-row:active{background:var(--bg3);color:var(--text);}
 
 /* ── Stats grid ── */
