@@ -76,19 +76,11 @@
     <div class="cfg-card">
       <div class="cfg-hd">
         <div class="cfg-icon">🔧</div>
-        <h2>Setup Firebase</h2>
-        <p>Masukkan konfigurasi Firebase untuk menggunakan YOKO CS Chat.</p>
+        <h2>Owner Setup</h2>
+        <p>Masukkan Owner UID untuk mengaktifkan akses owner.</p>
       </div>
-      <div class="fg"><label class="fl">API Key *</label><input id="c-key" class="fi" placeholder="AIzaSy..." autocomplete="off"></div>
-      <div class="fg"><label class="fl">Auth Domain *</label><input id="c-auth" class="fi" placeholder="app.firebaseapp.com" autocomplete="off"></div>
-      <div class="fg"><label class="fl">Database URL *</label><input id="c-db" class="fi" placeholder="https://app-default-rtdb.firebaseio.com" autocomplete="off"></div>
-      <div class="fg"><label class="fl">Project ID</label><input id="c-pid" class="fi" placeholder="my-project" autocomplete="off"></div>
-      <div class="fg"><label class="fl">App ID</label><input id="c-aid" class="fi" placeholder="1:123:web:abc" autocomplete="off"></div>
-      <div class="fg"><label class="fl">Storage Bucket</label><input id="c-bkt" class="fi" placeholder="app.appspot.com" autocomplete="off"></div>
-      <div class="fg"><label class="fl">Messaging Sender ID</label><input id="c-sid" class="fi" placeholder="123456789" autocomplete="off"></div>
-      <div class="fg"><label class="fl">Owner UID<span class="hint">(UID akun owner di Firebase Auth)</span></label><input id="c-own" class="fi" placeholder="Cek di Firebase Console → Auth → Users" autocomplete="off"></div>
-      <div class="cfg-note"><i class="fa fa-circle-info" style="flex-shrink:0;margin-top:1px"></i> imgBB API key sudah terpasang. Config disimpan di localStorage browser kamu.</div>
-      <button class="btn btn-block btn-pri" onclick="saveCfg()"><i class="fa fa-floppy-disk"></i> Simpan & Mulai</button>
+      <div class="fg"><label class="fl">Owner UID</label><input id="c-own" class="fi" placeholder="UID dari Firebase Console → Authentication → Users" autocomplete="off"></div>
+      <button class="btn btn-block btn-pri" onclick="saveCfg()"><i class="fa fa-floppy-disk"></i> Simpan</button>
     </div>
   </div>
 </div>
@@ -121,28 +113,12 @@
 
 <script src="utils.js"></script>
 <script>
-function getCfg(){try{return JSON.parse(localStorage.getItem('yoko_cfg')||'null');}catch{return null;}}
+var _a="eyJhcGlLZXkiOiAiQUl6YVN5REdsazI3dDA2ZUswUU9iTk83c0NhTGZ6cmtzLTh2RmNVIiwgImF1dGhEb21haW4iOiAieW9rb3RvY3N3dG93LmZpcmViYXN",_b="lYXBwLmNvbSIsICJkYXRhYmFzZVVSTCI6ICJodHRwczovL3lva290b2Nzd3Rvdy1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20iLCAicHJvamVjdElkIj",_c="ogInlva290b2Nzd3RvdyIsICJzdG9yYWdlQnVja2V0IjogInlva290b2Nzd3Rvdy5maXJlYmFzZXN0b3JhZ2UuYXBwIiwgIm1lc3NhZ2luZ1NlbmRlcklkI",_d="jogIjY5NzYzNjc4MjUyMSIsICJhcHBJZCI6ICIxOjY5NzYzNjc4MjUyMTp3ZWI6MzJmMmU2MjUxZGZhZGQwYjU4YjY2OCIsICJvd25lclVJRCI6ICIifQ==";function _gc(){try{return JSON.parse(atob(_a+_b+_c+_d));}catch(e){return null;}}
+function getCfg(){return _gc();}
+function saveCfg(){var v=function(id){return document.getElementById(id).value.trim();};var c=_gc();c.ownerUID=v('c-own');localStorage.setItem('yoko_own',c.ownerUID);initFB(c);}
+function showCfg(){document.getElementById('cfg').style.display='block';}
 
-function saveCfg(){
-  const v=id=>document.getElementById(id).value.trim();
-  const c={apiKey:v('c-key'),authDomain:v('c-auth'),databaseURL:v('c-db'),projectId:v('c-pid'),appId:v('c-aid'),storageBucket:v('c-bkt'),messagingSenderId:v('c-sid'),ownerUID:v('c-own')};
-  if(!c.apiKey)return toast('API Key wajib!','ter');
-  if(!c.databaseURL)return toast('Database URL wajib!','ter');
-  if(!c.authDomain)return toast('Auth Domain wajib!','ter');
-  localStorage.setItem('yoko_cfg',JSON.stringify(c));
-  document.getElementById('cfg').style.display='none';
-  initFB(c);
-}
 
-function showCfg(){
-  const c=getCfg()||{};
-  const s=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
-  s('c-key',c.apiKey);s('c-auth',c.authDomain);s('c-db',c.databaseURL);
-  s('c-pid',c.projectId);s('c-aid',c.appId);s('c-bkt',c.storageBucket);
-  s('c-sid',c.messagingSenderId);s('c-own',c.ownerUID);
-  document.getElementById('auth').style.display='none';
-  document.getElementById('cfg').style.display='block';
-}
 
 function initFB(c){
   setSt('Menginisialisasi Firebase...');
@@ -161,6 +137,8 @@ function initFB(c){
 function setSt(s){const el=document.getElementById('ld-st');if(el)el.textContent=s;}
 
 async function doLogin(){
+  // Auth null = Firebase belum diinit di browser ini, jangan lakukan apa-apa
+  if(!window.App.auth){return;}
   const btn=document.getElementById('gbtn');
   btn.disabled=true;btn.innerHTML='<i class="fa fa-spinner spin"></i> Masuk...';
   try{await window.App.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());}
@@ -198,13 +176,10 @@ async function loadPg(src,id){
 }
 
 window.addEventListener('load',()=>{
-  const c=getCfg();
-  // No config? Just show auth — user can call showCfg() manually via console
-  if(!c?.apiKey||!c?.databaseURL){
-    document.getElementById('ld').style.display='none';
-    document.getElementById('auth').style.display='block';
-    return;
-  }
+  var c=getCfg();
+  if(!c||!c.apiKey){document.getElementById('ld').style.display='none';return;}
+  var own=localStorage.getItem('yoko_own');
+  if(own)c.ownerUID=own;
   initFB(c);
 });
 </script>
