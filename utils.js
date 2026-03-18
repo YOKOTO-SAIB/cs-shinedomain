@@ -79,21 +79,76 @@ async function _upImgBB(file,onProg){
   });
 }
 async function _up0x0(file,onProg){
+  const servers=[
+    ()=>_upPomf(file,onProg),
+    ()=>_upLitterbox(file,onProg),
+    ()=>_upFilebin(file,onProg),
+  ];
+  let lastErr;
+  for(const fn of servers){
+    try{return await fn();}
+    catch(e){lastErr=e;onProg&&onProg(0);}
+  }
+  throw lastErr||new Error('Semua server gagal');
+}
+
+async function _upPomf(file,onProg){
+  const fd=new FormData();fd.append('files[]',file);
+  return new Promise((res,rej)=>{
+    const x=new XMLHttpRequest();
+    x.open('POST','https://pomf2.lain.la/upload.php');
+    x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*85));};
+    x.onload=()=>{
+      try{
+        const d=JSON.parse(x.responseText);
+        if(d.success&&d.files&&d.files[0]){
+          const url='https://pomf2.lain.la/'+d.files[0].url;
+          onProg&&onProg(100);res({url});
+        }else rej(new Error('pomf2 gagal'));
+      }catch{rej(new Error('pomf2 parse error'));}
+    };
+    x.onerror=()=>rej(new Error('pomf2 network error'));
+    x.send(fd);
+  });
+}
+
+async function _upLitterbox(file,onProg){
   const fd=new FormData();
   fd.append('reqtype','fileupload');
-  fd.append('userhash','');
+  fd.append('time','72h');
   fd.append('fileToUpload',file);
   return new Promise((res,rej)=>{
     const x=new XMLHttpRequest();
-    x.open('POST','https://catbox.moe/user/api.php');
-    x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*90));};
+    x.open('POST','https://litterbox.catbox.moe/resources/internals/api.php');
+    x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*85));};
     x.onload=()=>{
       const url=(x.responseText||'').trim();
       if(x.status===200&&url.startsWith('https://')){onProg&&onProg(100);res({url});}
-      else rej(new Error('Upload gagal: '+(url||x.status)));
+      else rej(new Error('litterbox gagal'));
     };
-    x.onerror=()=>rej(new Error('Network error'));
+    x.onerror=()=>rej(new Error('litterbox network error'));
     x.send(fd);
+  });
+}
+
+async function _upFilebin(file,onProg){
+  const binId='yoko'+Date.now();
+  const url='https://filebin.net/'+binId+'/'+encodeURIComponent(file.name);
+  return new Promise((res,rej)=>{
+    const x=new XMLHttpRequest();
+    x.open('POST',url);
+    x.setRequestHeader('accept','application/json');
+    x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*85));};
+    x.onload=()=>{
+      try{
+        const d=JSON.parse(x.responseText);
+        const furl='https://filebin.net/'+binId+'/'+encodeURIComponent(file.name);
+        if(x.status===201||x.status===200){onProg&&onProg(100);res({url:furl});}
+        else rej(new Error('filebin gagal'));
+      }catch{rej(new Error('filebin error'));}
+    };
+    x.onerror=()=>rej(new Error('filebin network error'));
+    x.send(file);
   });
 }
 
