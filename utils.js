@@ -60,97 +60,49 @@ function onLP(el,cb){let t;el.addEventListener('touchstart',e=>{t=setTimeout(()=
 /* ── Copy ────────────────── */
 function copyTxt(s){navigator.clipboard?.writeText(s).then(()=>toast('Disalin!','tok')).catch(()=>{const t=document.createElement('textarea');t.value=s;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Disalin!','tok');});}
 
-/* ── Smart upload: image=imgBB, video/audio/file=catbox.moe (max 200MB) ── */
+/* ── Upload: image=imgBB, video/audio/file=Cloudinary (CORS-safe) ── */
+const CLOUD_NAME='dapfmzxxc';
+const CLOUD_PRESET='cshinedomain';
+
 async function upImgBB(file,onProg){
   if(file.size>MAX_MB*1048576) throw new Error('Max '+MAX_MB+'MB');
   const type=dType(file);
   if(type==='image') return _upImgBB(file,onProg);
-  return _up0x0(file,onProg);
+  return _upCloudinary(file,onProg);
 }
+
 async function _upImgBB(file,onProg){
   const fd=new FormData();fd.append('image',file);
   return new Promise((res,rej)=>{
     const x=new XMLHttpRequest();
     x.open('POST','https://api.imgbb.com/1/upload?key='+IMGBB_KEY);
     x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*85));};
-    x.onload=()=>{try{const d=JSON.parse(x.responseText);if(d.success){onProg&&onProg(100);res({url:d.data.url,thumb:d.data.thumb?.url});}else rej(new Error(d.error?.message||'imgBB gagal'));}catch{rej(new Error('Response error'));}};
+    x.onload=()=>{try{const d=JSON.parse(x.responseText);if(d.success){onProg&&onProg(100);res({url:d.data.url});}else rej(new Error(d.error?.message||'imgBB gagal'));}catch{rej(new Error('imgBB error'));}};
+    x.onerror=()=>rej(new Error('imgBB network error'));
+    x.send(fd);
+  });
+}
+
+async function _upCloudinary(file,onProg){
+  const fd=new FormData();
+  fd.append('file',file);
+  fd.append('upload_preset',CLOUD_PRESET);
+  return new Promise((res,rej)=>{
+    const x=new XMLHttpRequest();
+    x.open('POST','https://api.cloudinary.com/v1_1/'+CLOUD_NAME+'/auto/upload');
+    x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*90));};
+    x.onload=()=>{
+      try{
+        const d=JSON.parse(x.responseText);
+        if(d.secure_url){onProg&&onProg(100);res({url:d.secure_url});}
+        else rej(new Error(d.error?.message||'Cloudinary gagal'));
+      }catch{rej(new Error('Parse error'));}
+    };
     x.onerror=()=>rej(new Error('Network error'));
     x.send(fd);
   });
 }
-async function _up0x0(file,onProg){
-  const servers=[
-    ()=>_upPomf(file,onProg),
-    ()=>_upLitterbox(file,onProg),
-    ()=>_upFilebin(file,onProg),
-  ];
-  let lastErr;
-  for(const fn of servers){
-    try{return await fn();}
-    catch(e){lastErr=e;onProg&&onProg(0);}
-  }
-  throw lastErr||new Error('Semua server gagal');
-}
 
-async function _upPomf(file,onProg){
-  const fd=new FormData();fd.append('files[]',file);
-  return new Promise((res,rej)=>{
-    const x=new XMLHttpRequest();
-    x.open('POST','https://pomf2.lain.la/upload.php');
-    x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*85));};
-    x.onload=()=>{
-      try{
-        const d=JSON.parse(x.responseText);
-        if(d.success&&d.files&&d.files[0]){
-          const url='https://pomf2.lain.la/'+d.files[0].url;
-          onProg&&onProg(100);res({url});
-        }else rej(new Error('pomf2 gagal'));
-      }catch{rej(new Error('pomf2 parse error'));}
-    };
-    x.onerror=()=>rej(new Error('pomf2 network error'));
-    x.send(fd);
-  });
-}
-
-async function _upLitterbox(file,onProg){
-  const fd=new FormData();
-  fd.append('reqtype','fileupload');
-  fd.append('time','72h');
-  fd.append('fileToUpload',file);
-  return new Promise((res,rej)=>{
-    const x=new XMLHttpRequest();
-    x.open('POST','https://litterbox.catbox.moe/resources/internals/api.php');
-    x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*85));};
-    x.onload=()=>{
-      const url=(x.responseText||'').trim();
-      if(x.status===200&&url.startsWith('https://')){onProg&&onProg(100);res({url});}
-      else rej(new Error('litterbox gagal'));
-    };
-    x.onerror=()=>rej(new Error('litterbox network error'));
-    x.send(fd);
-  });
-}
-
-async function _upFilebin(file,onProg){
-  const binId='yoko'+Date.now();
-  const url='https://filebin.net/'+binId+'/'+encodeURIComponent(file.name);
-  return new Promise((res,rej)=>{
-    const x=new XMLHttpRequest();
-    x.open('POST',url);
-    x.setRequestHeader('accept','application/json');
-    x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*85));};
-    x.onload=()=>{
-      try{
-        const d=JSON.parse(x.responseText);
-        const furl='https://filebin.net/'+binId+'/'+encodeURIComponent(file.name);
-        if(x.status===201||x.status===200){onProg&&onProg(100);res({url:furl});}
-        else rej(new Error('filebin gagal'));
-      }catch{rej(new Error('filebin error'));}
-    };
-    x.onerror=()=>rej(new Error('filebin network error'));
-    x.send(file);
-  });
-}
 
 /* ── Lightbox ─────────────── */
 function openLB(url, name){
