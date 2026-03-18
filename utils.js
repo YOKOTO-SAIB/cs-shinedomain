@@ -60,15 +60,31 @@ function onLP(el,cb){let t;el.addEventListener('touchstart',e=>{t=setTimeout(()=
 /* ── Copy ────────────────── */
 function copyTxt(s){navigator.clipboard?.writeText(s).then(()=>toast('Disalin!','tok')).catch(()=>{const t=document.createElement('textarea');t.value=s;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Disalin!','tok');});}
 
-/* ── imgBB upload ─────────── */
-async function upImgBB(file, onProg){
-  if(file.size>MAX_MB*1048576) throw new Error(`Max ${MAX_MB}MB`);
-  const fd=new FormData(); fd.append('image',file);
+/* ── Smart upload: image=imgBB, video/audio/file=0x0.st ── */
+async function upImgBB(file,onProg){
+  if(file.size>MAX_MB*1048576) throw new Error('Max '+MAX_MB+'MB');
+  const type=dType(file);
+  if(type==='image') return _upImgBB(file,onProg);
+  return _up0x0(file,onProg);
+}
+async function _upImgBB(file,onProg){
+  const fd=new FormData();fd.append('image',file);
   return new Promise((res,rej)=>{
     const x=new XMLHttpRequest();
-    x.open('POST',`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`);
+    x.open('POST','https://api.imgbb.com/1/upload?key='+IMGBB_KEY);
+    x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*85));};
+    x.onload=()=>{try{const d=JSON.parse(x.responseText);if(d.success){onProg&&onProg(100);res({url:d.data.url,thumb:d.data.thumb?.url});}else rej(new Error(d.error?.message||'imgBB gagal'));}catch{rej(new Error('Response error'));}};
+    x.onerror=()=>rej(new Error('Network error'));
+    x.send(fd);
+  });
+}
+async function _up0x0(file,onProg){
+  const fd=new FormData();fd.append('file',file);
+  return new Promise((res,rej)=>{
+    const x=new XMLHttpRequest();
+    x.open('POST','https://0x0.st');
     x.upload.onprogress=e=>{if(e.lengthComputable&&onProg)onProg(Math.round(e.loaded/e.total*90));};
-    x.onload=()=>{try{const d=JSON.parse(x.responseText);if(d.success){onProg&&onProg(100);res({url:d.data.url,thumb:d.data.thumb?.url});}else rej(new Error(d.error?.message||'Upload gagal'));}catch{rej(new Error('Response error'));}};
+    x.onload=()=>{const url=(x.responseText||'').trim();if(x.status===200&&url.startsWith('https://')){onProg&&onProg(100);res({url});}else rej(new Error('Upload gagal ('+x.status+')'));};
     x.onerror=()=>rej(new Error('Network error'));
     x.send(fd);
   });
